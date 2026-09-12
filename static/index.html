@@ -50,6 +50,28 @@
   .card a { margin-top: auto; text-decoration: none; color: var(--accent); font-size: 13px; font-weight: 600; }
   .note { background: var(--chip); border: 1px solid var(--border); border-radius: 10px;
           padding: 10px 12px; color: var(--muted); font-size: 13px; margin-top: 12px; }
+  #watchSection { margin-top: 40px; border-top: 1px solid var(--border); padding-top: 20px; }
+  .watchAdd { display: grid; grid-template-columns: 2fr 1.4fr auto; gap: 10px; margin-bottom: 16px; }
+  .watch { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+           padding: 14px 16px; margin-bottom: 10px; }
+  .watch .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .watch .name { font-weight: 600; font-size: 15px; }
+  .watch .loc { color: var(--muted); font-size: 13px; }
+  .watch .price { font-size: 20px; font-weight: 700; }
+  .watch .line { display: flex; align-items: center; gap: 12px; margin-top: 8px;
+                 flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  .pill { border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .pill.yes { background: rgba(46,160,67,.18); color: #3fb950; }
+  .pill.no { background: rgba(248,81,73,.16); color: #f85149; }
+  .up { color: #f85149; font-weight: 600; }
+  .down { color: #3fb950; font-weight: 600; }
+  .watch .actions { display: flex; gap: 8px; }
+  .btnlink { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px;
+             font-weight: 600; padding: 0; }
+  .hist { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;
+          font-size: 12px; color: var(--muted); }
+  .hist div { display: flex; justify-content: space-between; padding: 2px 0; }
+  @media (max-width: 720px) { .watchAdd { grid-template-columns: 1fr; } }
   @media (max-width: 720px) { .controls, .row2 { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -95,6 +117,20 @@
 
   <div class="grid" id="grid"></div>
   <div class="note" id="providerNote"></div>
+
+  <section id="watchSection">
+    <div class="bar">
+      <h2 style="margin:0;font-size:18px;">📌 Daily watchlist</h2>
+      <button class="ghost" id="checkAll">Refresh all</button>
+    </div>
+    <p class="status" style="margin:0 0 12px;">Track a product once — it re-checks automatically every day and records price &amp; availability.</p>
+    <div class="watchAdd">
+      <input id="wProduct" placeholder="Product to track (e.g. cbr 650 r)" />
+      <input id="wLocation" placeholder="Location" value="Bangalore, India" />
+      <button id="wAdd">Track daily</button>
+    </div>
+    <div id="watchList"></div>
+  </section>
 </div>
 
 <script>
@@ -197,6 +233,116 @@ $("q").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
 $("loc").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
 $("csv").addEventListener("click", exportCsv);
 loadProviders();
+
+function timeAgo(sec) {
+  if (!sec) return "never";
+  const s = Math.floor(Date.now() / 1000 - sec);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+
+function priceText(snap) {
+  if (!snap) return "—";
+  if (snap.min_price == null) return snap.available ? "Listings found (no price data)" : "No results";
+  return `${snap.currency || ""} ${snap.min_price.toLocaleString()}`.trim();
+}
+
+function changeBadge(w) {
+  if (w.change == null || w.change === 0) return "";
+  const cls = w.change > 0 ? "up" : "down";
+  const arrow = w.change > 0 ? "▲" : "▼";
+  const cur = w.latest?.currency || "";
+  return `<span class="${cls}">${arrow} ${cur} ${Math.abs(w.change).toLocaleString()}</span>`;
+}
+
+async function loadWatches() {
+  const r = await fetch("/api/watches");
+  const d = await r.json();
+  const box = $("watchList");
+  box.innerHTML = "";
+  if (!d.watches.length) {
+    box.innerHTML = `<p class="status">No tracked products yet. Add one above.</p>`;
+    return;
+  }
+  d.watches.forEach(w => {
+    const s = w.latest;
+    const el = document.createElement("div");
+    el.className = "watch";
+    el.innerHTML = `
+      <div class="head">
+        <div>
+          <div class="name">${escapeHtml(w.product)}</div>
+          <div class="loc">${escapeHtml(w.location)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="price">${priceText(s)}</div>
+          <div class="loc">${changeBadge(w)} ${s && s.priced_count ? s.priced_count + " priced" : ""}</div>
+        </div>
+      </div>
+      <div class="line">
+        <span class="pill ${s && s.available ? "yes" : "no"}">${s && s.available ? "Available" : "Not found"}</span>
+        <span>checked ${timeAgo(s?.checked_at)}</span>
+        <span>via ${s ? s.providers.join(", ") : "—"}</span>
+        <span style="flex:1;"></span>
+        <span class="actions">
+          <button class="btnlink" data-check="${w.id}">Check now</button>
+          <button class="btnlink" data-hist="${w.id}">History</button>
+          <button class="btnlink" data-del="${w.id}" style="color:var(--muted);">Remove</button>
+        </span>
+      </div>
+      <div class="hist" id="hist-${w.id}" hidden></div>`;
+    box.appendChild(el);
+  });
+
+  box.querySelectorAll("[data-check]").forEach(b => b.onclick = async () => {
+    b.textContent = "Checking…"; b.disabled = true;
+    await fetch(`/api/watches/${b.dataset.check}/check`, { method: "POST" });
+    loadWatches();
+  });
+  box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    await fetch(`/api/watches/${b.dataset.del}`, { method: "DELETE" });
+    loadWatches();
+  });
+  box.querySelectorAll("[data-hist]").forEach(b => b.onclick = () => toggleHistory(b.dataset.hist));
+}
+
+async function toggleHistory(id) {
+  const box = $(`hist-${id}`);
+  if (!box.hidden) { box.hidden = true; return; }
+  const r = await fetch(`/api/watches/${id}/history`);
+  const d = await r.json();
+  box.innerHTML = d.history.length
+    ? d.history.map(h => `<div><span>${new Date(h.checked_at * 1000).toLocaleString()}</span>
+        <span>${h.min_price != null ? (h.currency || "") + " " + h.min_price.toLocaleString() : (h.available ? "found" : "none")}</span></div>`).join("")
+    : "<div>No history yet.</div>";
+  box.hidden = false;
+}
+
+async function addWatch() {
+  const product = $("wProduct").value.trim();
+  if (!product) { $("wProduct").focus(); return; }
+  $("wAdd").disabled = true; $("wAdd").textContent = "Adding…";
+  await fetch("/api/watches", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ product, location: $("wLocation").value.trim() || "Bangalore, India" }),
+  });
+  $("wProduct").value = "";
+  $("wAdd").disabled = false; $("wAdd").textContent = "Track daily";
+  loadWatches();
+}
+
+$("wAdd").addEventListener("click", addWatch);
+$("wProduct").addEventListener("keydown", e => { if (e.key === "Enter") addWatch(); });
+$("checkAll").addEventListener("click", async () => {
+  const btn = $("checkAll"); btn.disabled = true; btn.textContent = "Refreshing…";
+  const ids = Array.from(document.querySelectorAll("[data-check]")).map(b => b.dataset.check);
+  for (const id of ids) await fetch(`/api/watches/${id}/check`, { method: "POST" });
+  btn.disabled = false; btn.textContent = "Refresh all";
+  loadWatches();
+});
+loadWatches();
 </script>
 </body>
 </html>

@@ -74,9 +74,35 @@ Results grid + CSV export
 - Location selector (any city/country), default **Bangalore, India**
 - Min/max **price** filters and source selection
 - Results **sorted by price**, deduplicated across providers
+- **Daily watchlist** — track a product once, auto-re-checked with price/availability history
 - **CSV export** of the current results
 - 1-hour in-memory cache per query
 - Light/dark theme, responsive layout, single-file frontend (no build step)
+
+## Daily price & availability tracking
+
+Add a product to the **watchlist** once (product + location) and the app records a snapshot of
+the lowest price, availability, and top listings — then re-checks it automatically. Each watch
+shows the latest price, an ▲/▼ change vs. the previous check, availability, and a full history.
+
+- **Automatic:** while the app is running, a background scheduler re-checks every watch on a
+  daily interval (set `CHECK_INTERVAL_HOURS`, default `24`).
+- **Manual:** "Check now" per watch, or "Refresh all".
+- Meaningful **price** tracking needs a priced provider — add your `SERPAPI_KEY` (or Apify
+  actors). Without one, watches still track whether the marketplace searches return results.
+
+Watchlist data is stored locally in `backend/watches.db` (SQLite, gitignored).
+
+### Run checks even when the app is closed (cron / launchd)
+
+`backend/check.py` runs every watch once and exits — wire it to a scheduler so tracking
+continues without keeping the server open. Example cron entry (runs daily at 9am):
+
+```cron
+0 9 * * *  cd /path/to/serchTool/backend && ./.venv/bin/python check.py >> /tmp/serch-check.log 2>&1
+```
+
+It writes to the same `watches.db`, so the results show up in the web UI next time you open it.
 
 ## Add another source
 
