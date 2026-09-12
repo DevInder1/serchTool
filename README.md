@@ -2,7 +2,7 @@
 
 A small web app that searches the web for **product listings and prices**, filtered by **location** (defaults to *Bangalore, India*, and you can change it to any city or country).
 
-It runs out of the box on **sample data** so anyone can try it with zero setup, and switches to **real search results** the moment you add an API key.
+With zero setup it returns **real marketplace searches** (OLX, Facebook, Instagram, IndiaMART, Quikr) as one-click cards, and it layers in **priced product listings** the moment you add an API key. It never shows invented listings or placeholder images.
 
 ## Live demo
 
@@ -12,7 +12,7 @@ Run it locally — it's a single command and needs no API keys or hosting:
 git clone https://github.com/DevInder1/serchTool && cd serchTool && ./run.sh
 ```
 
-Then open **[http://localhost:8000](http://localhost:8000)** and search. It works immediately on realistic sample data; add a key (see below) to get live results.
+Then open **[http://localhost:8000](http://localhost:8000)** and search. Out of the box you get accurate deep-links into each Indian marketplace for your product; add a key (see below) to also get priced listings.
 
 ## Quick start
 
@@ -32,16 +32,25 @@ Then open **http://localhost:8000**. Type a product, set a location, and search.
 > uvicorn main:app --reload
 > ```
 
-## Real search results (optional)
+## Priced listings (optional)
 
-By default the app returns realistic **mock** listings so the UI works immediately. To get live results from Google Shopping, add a free [SerpAPI](https://serpapi.com/) key:
+Out of the box the app shows only accurate results: real marketplace search links, plus any keyed providers. To also get priced product listings from Google Shopping, add a free [SerpAPI](https://serpapi.com/) key:
 
 ```bash
 export SERPAPI_KEY="your_key_here"   # Windows: set SERPAPI_KEY=your_key_here
 ./run.sh
 ```
 
-The app auto-detects the key, hides the mock provider, and searches for real. No key = it stays on sample data.
+The app auto-detects the key and adds real priced results. No key = you still get the accurate marketplace search cards.
+
+### Demo/sample data (off by default)
+
+There is a `mock` provider that fabricates realistic-looking sample listings — useful only for previewing the UI. It is **disabled by default** so it never pollutes real searches. Turn it on explicitly if you want it:
+
+```bash
+export ENABLE_MOCK=1
+./run.sh
+```
 
 ## How it works
 
@@ -53,7 +62,7 @@ FastAPI backend  ──►  Provider layer (runs in parallel)
         │                ├─ serpapi       (Google Shopping — real prices, needs key)
         │                ├─ apify         (real OLX/Facebook/Instagram listings, needs token)
         │                ├─ marketplaces  (OLX, Facebook, Instagram, IndiaMART, Quikr — free links)
-        │                └─ mock          (sample data, no key needed)
+        │                └─ mock          (sample data — off unless ENABLE_MOCK=1)
         │                      │
         │             normalize → dedupe → price filter → sort by price → cache 1h
         ▼

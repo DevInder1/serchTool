@@ -1,4 +1,5 @@
 import hashlib
+import os
 import random
 
 from models import Listing, SearchRequest
@@ -33,6 +34,10 @@ def _currency_for(location: str) -> tuple[str, float, float]:
 class MockProvider(Provider):
     name = "mock"
 
+    @property
+    def enabled(self) -> bool:
+        return os.getenv("ENABLE_MOCK", "").strip().lower() in ("1", "true", "yes")
+
     async def search(self, req: SearchRequest) -> list[Listing]:
         seed = int(hashlib.sha256(f"{req.query}|{req.location}".encode()).hexdigest(), 16) % (10**8)
         rng = random.Random(seed)
@@ -52,7 +57,7 @@ class MockProvider(Provider):
                     location=req.location,
                     source="mock",
                     product_url=f"https://example.com/{slug}/{i}",
-                    image_url=f"https://picsum.photos/seed/{seed + i}/300/200",
+                    image_url=None,
                 ).with_timestamp()
             )
         return results

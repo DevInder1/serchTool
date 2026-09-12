@@ -116,14 +116,15 @@ async function loadProviders() {
     d.providers.forEach(p => {
       const o = document.createElement("option");
       o.value = p.name;
-      o.textContent = p.enabled ? p.name : `${p.name} (needs API key)`;
+      const hint = p.name === "mock" ? " (demo — off)" : " (needs key)";
+      o.textContent = p.enabled ? p.name : p.name + hint;
       o.disabled = !p.enabled;
       sel.appendChild(o);
     });
-    const usingMock = active.length === 1 && active[0] === "mock";
-    $("providerNote").textContent = usingMock
-      ? "Running on sample (mock) data. Set the SERPAPI_KEY environment variable and restart to search real listings."
-      : `Live providers active: ${active.join(", ")}.`;
+    const dataActive = active.filter(n => n !== "marketplaces");
+    $("providerNote").textContent = dataActive.length
+      ? `Live providers active: ${active.join(", ")}.`
+      : "Showing marketplace searches on OLX, Facebook, Instagram, IndiaMART and Quikr. Add a SERPAPI_KEY or APIFY_* actor to also pull in priced listings.";
   } catch (e) {}
 }
 
