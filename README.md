@@ -4,6 +4,16 @@ A small web app that searches the web for **product listings and prices**, filte
 
 It runs out of the box on **sample data** so anyone can try it with zero setup, and switches to **real search results** the moment you add an API key.
 
+## Live demo
+
+Run it locally — it's a single command and needs no API keys or hosting:
+
+```bash
+git clone https://github.com/DevInder1/serchTool && cd serchTool && ./run.sh
+```
+
+Then open **[http://localhost:8000](http://localhost:8000)** and search. It works immediately on realistic sample data; add a key (see below) to get live results.
+
 ## Quick start
 
 ```bash
