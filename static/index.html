@@ -71,6 +71,14 @@
   .hist { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;
           font-size: 12px; color: var(--muted); }
   .hist div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .watchtop { cursor: pointer; }
+  .listings { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 6px; }
+  .listrow { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+             padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .listrow:last-child { border-bottom: 0; }
+  .listmain a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 14px; }
+  .listmain a:hover { text-decoration: underline; }
+  .listprice { font-weight: 700; font-size: 14px; white-space: nowrap; }
   @media (max-width: 720px) { .watchAdd { grid-template-columns: 1fr; } }
   @media (max-width: 720px) { .controls, .row2 { grid-template-columns: 1fr; } }
 </style>
@@ -257,6 +265,23 @@ function changeBadge(w) {
   return `<span class="${cls}">${arrow} ${cur} ${Math.abs(w.change).toLocaleString()}</span>`;
 }
 
+function renderListings(snap) {
+  if (!snap || !snap.top || !snap.top.length) {
+    return `<div class="listrow"><span class="status">No listings captured in the last check.</span></div>`;
+  }
+  return snap.top.map(it => {
+    const price = it.price != null ? `${it.currency || ""} ${it.price.toLocaleString()}`.trim() : "Price on site";
+    const meta = [it.seller, it.source].filter(Boolean).map(escapeHtml).join(" · ");
+    return `<div class="listrow">
+        <div class="listmain">
+          <a href="${it.product_url}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.title)}</a>
+          <div class="loc">${meta}</div>
+        </div>
+        <div class="listprice">${price}</div>
+      </div>`;
+  }).join("");
+}
+
 async function loadWatches() {
   const r = await fetch("/api/watches");
   const d = await r.json();
@@ -270,15 +295,16 @@ async function loadWatches() {
     const s = w.latest;
     const el = document.createElement("div");
     el.className = "watch";
+    const count = s ? s.total_count : 0;
     el.innerHTML = `
-      <div class="head">
+      <div class="head watchtop" data-list="${w.id}" title="Click to see the listings">
         <div>
-          <div class="name">${escapeHtml(w.product)}</div>
+          <div class="name">▸ ${escapeHtml(w.product)}</div>
           <div class="loc">${escapeHtml(w.location)}</div>
         </div>
         <div style="text-align:right;">
           <div class="price">${priceText(s)}</div>
-          <div class="loc">${changeBadge(w)} ${s && s.priced_count ? s.priced_count + " priced" : ""}</div>
+          <div class="loc">${changeBadge(w)} ${count ? count + " listing" + (count === 1 ? "" : "s") : ""}</div>
         </div>
       </div>
       <div class="line">
@@ -287,13 +313,22 @@ async function loadWatches() {
         <span>via ${s ? s.providers.join(", ") : "—"}</span>
         <span style="flex:1;"></span>
         <span class="actions">
+          <button class="btnlink" data-list="${w.id}">View listings</button>
           <button class="btnlink" data-check="${w.id}">Check now</button>
           <button class="btnlink" data-hist="${w.id}">History</button>
           <button class="btnlink" data-del="${w.id}" style="color:var(--muted);">Remove</button>
         </span>
       </div>
+      <div class="listings" id="list-${w.id}" hidden>${renderListings(s)}</div>
       <div class="hist" id="hist-${w.id}" hidden></div>`;
     box.appendChild(el);
+  });
+
+  box.querySelectorAll("[data-list]").forEach(b => b.onclick = () => {
+    const box2 = $(`list-${b.dataset.list}`);
+    box2.hidden = !box2.hidden;
+    const arrow = document.querySelector(`.watchtop[data-list="${b.dataset.list}"] .name`);
+    if (arrow) arrow.textContent = (box2.hidden ? "▸ " : "▾ ") + arrow.textContent.slice(2);
   });
 
   box.querySelectorAll("[data-check]").forEach(b => b.onclick = async () => {
