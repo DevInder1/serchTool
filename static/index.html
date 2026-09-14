@@ -50,7 +50,16 @@
   .card a { margin-top: auto; text-decoration: none; color: var(--accent); font-size: 13px; font-weight: 600; }
   .note { background: var(--chip); border: 1px solid var(--border); border-radius: 10px;
           padding: 10px 12px; color: var(--muted); font-size: 13px; margin-top: 12px; }
-  #watchSection { margin-top: 40px; border-top: 1px solid var(--border); padding-top: 20px; }
+  #trendSection, #watchSection { margin-top: 40px; border-top: 1px solid var(--border); padding-top: 20px; }
+  .trend { display: flex; align-items: center; gap: 12px; background: var(--panel);
+           border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; }
+  .trend .rank { font-weight: 700; color: var(--muted); font-size: 14px; width: 22px; text-align: center; }
+  .trend img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; background: var(--chip); }
+  .trend .info { flex: 1; min-width: 0; }
+  .trend .q { font-weight: 600; font-size: 15px; }
+  .trend .sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trend .traffic { color: #3fb950; font-weight: 600; font-size: 12px; white-space: nowrap; }
+  .trend .actions { display: flex; gap: 8px; }
   .watchAdd { display: grid; grid-template-columns: 2fr 1.4fr auto; gap: 10px; margin-bottom: 16px; }
   .watch { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
            padding: 14px 16px; margin-bottom: 10px; }
@@ -125,6 +134,18 @@
 
   <div class="grid" id="grid"></div>
   <div class="note" id="providerNote"></div>
+
+  <section id="trendSection">
+    <div class="bar">
+      <h2 style="margin:0;font-size:18px;">🔥 Trending now</h2>
+      <span class="actions" style="display:flex;gap:8px;align-items:center;">
+        <select id="trendGeo" style="width:auto;padding:7px 9px;"></select>
+        <button class="ghost" id="trendRefresh">Refresh</button>
+      </span>
+    </div>
+    <p class="status" style="margin:0 0 12px;">Top trending searches in the selected region — click one to search it as a product or track it daily.</p>
+    <div id="trendList"></div>
+  </section>
 
   <section id="watchSection">
     <div class="bar">
@@ -264,6 +285,73 @@ function changeBadge(w) {
   const cur = w.latest?.currency || "";
   return `<span class="${cls}">${arrow} ${cur} ${Math.abs(w.change).toLocaleString()}</span>`;
 }
+
+let trendGeoLoaded = false;
+
+async function loadTrending() {
+  const geo = $("trendGeo").value || "IN";
+  const box = $("trendList");
+  box.innerHTML = `<p class="status">Loading trends…</p>`;
+  let d;
+  try {
+    const r = await fetch(`/api/trending?geo=${encodeURIComponent(geo)}`);
+    d = await r.json();
+  } catch (e) {
+    box.innerHTML = `<p class="status">Could not load trends.</p>`;
+    return;
+  }
+  if (!trendGeoLoaded && d.regions) {
+    const sel = $("trendGeo");
+    sel.innerHTML = "";
+    Object.entries(d.regions).forEach(([code, name]) => {
+      const o = document.createElement("option");
+      o.value = code; o.textContent = name;
+      if (code === d.geo) o.selected = true;
+      sel.appendChild(o);
+    });
+    trendGeoLoaded = true;
+  }
+  if (!d.items || !d.items.length) {
+    box.innerHTML = `<p class="status">No trends available${d.error ? " (" + escapeHtml(d.error) + ")" : ""}.</p>`;
+    return;
+  }
+  box.innerHTML = "";
+  d.items.forEach((it, i) => {
+    const el = document.createElement("div");
+    el.className = "trend";
+    el.innerHTML = `
+      <div class="rank">${i + 1}</div>
+      ${it.image ? `<img src="${it.image}" alt="" loading="lazy" onerror="this.remove()"/>` : ""}
+      <div class="info">
+        <div class="q">${escapeHtml(it.query)}</div>
+        <div class="sub">${it.article_title ? escapeHtml(it.article_title) : escapeHtml(it.source || "")}</div>
+      </div>
+      <div class="traffic">${escapeHtml(it.traffic || "")}</div>
+      <div class="actions">
+        <button class="btnlink" data-tsearch="${encodeURIComponent(it.query)}">Search</button>
+        <button class="btnlink" data-ttrack="${encodeURIComponent(it.query)}">Track</button>
+      </div>`;
+    box.appendChild(el);
+  });
+  box.querySelectorAll("[data-tsearch]").forEach(b => b.onclick = () => {
+    $("q").value = decodeURIComponent(b.dataset.tsearch);
+    doSearch();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  box.querySelectorAll("[data-ttrack]").forEach(b => b.onclick = async () => {
+    b.textContent = "Tracking…"; b.disabled = true;
+    await fetch("/api/watches", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product: decodeURIComponent(b.dataset.ttrack), location: $("loc").value.trim() || "Bangalore, India" }),
+    });
+    b.textContent = "Tracked ✓";
+    loadWatches();
+  });
+}
+
+$("trendRefresh").addEventListener("click", loadTrending);
+$("trendGeo").addEventListener("change", loadTrending);
+loadTrending();
 
 function renderListings(snap) {
   if (!snap || !snap.top || !snap.top.length) {

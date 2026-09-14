@@ -74,10 +74,21 @@ Results grid + CSV export
 - Location selector (any city/country), default **Bangalore, India**
 - Min/max **price** filters and source selection
 - Results **sorted by price**, deduplicated across providers
+- **Trending now** — top trending searches per region (free Google Trends feed), click to search or track
 - **Daily watchlist** — track a product once, auto-re-checked with price/availability history
 - **CSV export** of the current results
 - 1-hour in-memory cache per query
 - Light/dark theme, responsive layout, single-file frontend (no build step)
+
+## Trending now
+
+The **🔥 Trending now** panel lists the top trending searches for a region, pulled from Google
+Trends' public daily-trends RSS feed (**free, no API key**). Pick a region (India, US, UK, and
+more), and click **Search** to run it as a product search or **Track** to add it to your daily
+watchlist. Served by `GET /api/trending?geo=IN`.
+
+Note: these are general trending searches in the region, not a product-only feed — a quick way
+to spot what's spiking and jump straight into searching or tracking it.
 
 ## Daily price & availability tracking
 

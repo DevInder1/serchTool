@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import store
+import trending
 from engine import ALL_PROVIDERS, perform_search
 from models import SearchRequest, SearchResponse
 from watcher import check_watch, scheduler_loop
@@ -35,6 +36,15 @@ def providers() -> dict:
 @app.post("/api/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
     return await perform_search(req)
+
+
+@app.get("/api/trending")
+async def get_trending(geo: str = "IN") -> dict:
+    try:
+        items = await trending.fetch_trending(geo)
+        return {"geo": geo.upper(), "regions": trending.REGIONS, "items": items}
+    except Exception as exc:  # noqa: BLE001
+        return {"geo": geo.upper(), "regions": trending.REGIONS, "items": [], "error": str(exc)}
 
 
 def _watch_view(watch: dict) -> dict:
