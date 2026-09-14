@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import bestsellers
 import store
 import trending
 from engine import ALL_PROVIDERS, perform_search
@@ -36,6 +37,15 @@ def providers() -> dict:
 @app.post("/api/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
     return await perform_search(req)
+
+
+@app.get("/api/bestsellers")
+def get_bestsellers(store_name: str = "amazon") -> dict:
+    return {
+        "stores": bestsellers.STORES,
+        "store": store_name.lower() if store_name.lower() in bestsellers.STORES else "amazon",
+        "items": bestsellers.list_bestsellers(store_name),
+    }
 
 
 @app.get("/api/trending")

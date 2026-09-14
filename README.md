@@ -75,6 +75,7 @@ Results grid + CSV export
 - Min/max **price** filters and source selection
 - Results **sorted by price**, deduplicated across providers
 - **Trending now** — top trending searches per region (free Google Trends feed), click to search or track
+- **Bestsellers** — browse Amazon.in & Flipkart top-selling products by category
 - **Daily watchlist** — track a product once, auto-re-checked with price/availability history
 - **CSV export** of the current results
 - 1-hour in-memory cache per query
@@ -89,6 +90,20 @@ watchlist. Served by `GET /api/trending?geo=IN`.
 
 Note: these are general trending searches in the region, not a product-only feed — a quick way
 to spot what's spiking and jump straight into searching or tracking it.
+
+## Bestsellers (Amazon.in & Flipkart)
+
+The **🏆 Bestsellers** panel is the "what's selling" view. Toggle between **Amazon.in** and
+**Flipkart** and pick a category (Electronics, Mobiles, Fashion, Home & Kitchen, Beauty, and
+more) to open that store's **live Best Sellers / most-popular list** in a new tab. Served by
+`GET /api/bestsellers?store_name=amazon`.
+
+Why deep-links and not scraped data: neither store offers a free bestsellers API (Amazon's
+Product Advertising API needs an approved affiliate account; Flipkart's affiliate API was
+retired), and scraping them breaks their terms and gets blocked. The links point at the real,
+always-current bestseller pages — accurate, zero-maintenance, ToS-safe. To pull the actual
+ranked items into the app instead, add a keyed Apify actor (`APIFY_AMAZON_ACTOR` /
+`APIFY_FLIPKART_ACTOR`) — see the Apify section above.
 
 ## Daily price & availability tracking
 
