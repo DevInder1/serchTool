@@ -164,6 +164,7 @@
     </div>
     <p class="status" style="margin:0 0 12px;">Top-selling / most popular products by category, straight from the store. Click a category to open its live bestseller list.</p>
     <div class="bestGrid" id="bestList"></div>
+    <div id="bestItems"></div>
   </section>
 
   <section id="watchSection">
@@ -327,16 +328,55 @@ async function loadBestsellers() {
     b.onclick = () => { bestStore = code; loadBestsellers(); };
     tabs.appendChild(b);
   });
+  const live = (d.live_stores || []).includes(d.store);
   box.innerHTML = "";
+  $("bestItems").innerHTML = "";
   d.items.forEach(it => {
-    const a = document.createElement("a");
-    a.className = "best";
-    a.href = it.url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.innerHTML = `<span>${escapeHtml(it.category)}</span><span class="arrow">→</span>`;
-    box.appendChild(a);
+    if (live) {
+      const b = document.createElement("button");
+      b.className = "best";
+      b.innerHTML = `<span>${escapeHtml(it.category)}</span><span class="arrow">▾</span>`;
+      b.onclick = () => loadBestItems(d.store, it.category, it.url);
+      box.appendChild(b);
+    } else {
+      const a = document.createElement("a");
+      a.className = "best";
+      a.href = it.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.innerHTML = `<span>${escapeHtml(it.category)}</span><span class="arrow">→</span>`;
+      box.appendChild(a);
+    }
   });
+}
+
+async function loadBestItems(store, category, fallbackUrl) {
+  const box = $("bestItems");
+  box.innerHTML = `<p class="status">Loading ${escapeHtml(category)} bestsellers…</p>`;
+  let d;
+  try {
+    const r = await fetch(`/api/bestsellers/items?store_name=${encodeURIComponent(store)}&category=${encodeURIComponent(category)}`);
+    d = await r.json();
+  } catch (e) { d = { items: [] }; }
+  if (!d.items || !d.items.length) {
+    box.innerHTML = `<div class="listings"><div class="listrow"><span class="status">
+      No items returned${d.error ? " (" + escapeHtml(d.error) + ")" : ""}.
+      <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer">Open on site →</a></span></div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="listings">
+    <div class="bar"><strong>${escapeHtml(category)} — top ${d.items.length}</strong>
+      <a class="btnlink" href="${fallbackUrl}" target="_blank" rel="noopener noreferrer">Open full list →</a></div>
+    ${d.items.map(it => {
+      const price = it.price != null ? `${it.currency || ""} ${it.price.toLocaleString()}`.trim() : "See price";
+      return `<div class="listrow">
+        ${it.image ? `<img src="${it.image}" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;" onerror="this.remove()"/>` : ""}
+        <div class="listmain">
+          <a href="${it.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.title)}</a>
+          <div class="loc">${escapeHtml(it.seller || it.source || "")}</div>
+        </div>
+        <div class="listprice">${price}</div>
+      </div>`;
+    }).join("")}
+  </div>`;
 }
 
 loadBestsellers();

@@ -41,11 +41,25 @@ async def search(req: SearchRequest) -> SearchResponse:
 
 @app.get("/api/bestsellers")
 def get_bestsellers(store_name: str = "amazon") -> dict:
+    store_name = store_name.lower() if store_name.lower() in bestsellers.STORES else "amazon"
     return {
         "stores": bestsellers.STORES,
-        "store": store_name.lower() if store_name.lower() in bestsellers.STORES else "amazon",
+        "store": store_name,
+        "live_stores": bestsellers.live_stores(),
         "items": bestsellers.list_bestsellers(store_name),
     }
+
+
+@app.get("/api/bestsellers/items")
+async def get_bestseller_items(store_name: str = "amazon", category: str = "") -> dict:
+    store_name = store_name.lower() if store_name.lower() in bestsellers.STORES else "amazon"
+    if not bestsellers.is_live(store_name):
+        return {"store": store_name, "category": category, "live": False, "items": []}
+    try:
+        items = await bestsellers.fetch_items(store_name, category)
+        return {"store": store_name, "category": category, "live": True, "items": items}
+    except Exception as exc:  # noqa: BLE001
+        return {"store": store_name, "category": category, "live": True, "items": [], "error": str(exc)}
 
 
 @app.get("/api/trending")

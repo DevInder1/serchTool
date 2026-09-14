@@ -98,12 +98,29 @@ The **🏆 Bestsellers** panel is the "what's selling" view. Toggle between **Am
 more) to open that store's **live Best Sellers / most-popular list** in a new tab. Served by
 `GET /api/bestsellers?store_name=amazon`.
 
-Why deep-links and not scraped data: neither store offers a free bestsellers API (Amazon's
-Product Advertising API needs an approved affiliate account; Flipkart's affiliate API was
-retired), and scraping them breaks their terms and gets blocked. The links point at the real,
-always-current bestseller pages — accurate, zero-maintenance, ToS-safe. To pull the actual
-ranked items into the app instead, add a keyed Apify actor (`APIFY_AMAZON_ACTOR` /
-`APIFY_FLIPKART_ACTOR`) — see the Apify section above.
+Why deep-links by default: neither store offers a free bestsellers API (Amazon's Product
+Advertising API needs an approved affiliate account; Flipkart's affiliate API was retired),
+and scraping them breaks their terms. The links point at the real, always-current bestseller
+pages — accurate, zero-maintenance, ToS-safe.
+
+### Inline bestseller data via Apify (optional, keyed)
+
+To render the ranked items **inside the app** (thumbnails, titles, prices) instead of linking
+out, add a token and a per-store actor:
+
+```bash
+export APIFY_TOKEN="your_apify_token"
+export APIFY_AMAZON_ACTOR="username/amazon-bestsellers-actor"
+export APIFY_FLIPKART_ACTOR="username/flipkart-actor"
+```
+
+When a store has an actor configured it is marked "live": clicking a category then fetches that
+category's ranked products and lists them in place (with an "Open full list" link to the store).
+The actor is run via Apify's `run-sync-get-dataset-items` API with the category's store URL as
+input — override the input shape with `APIFY_BESTSELLER_INPUT_TEMPLATE` (placeholders `{url}`,
+`{limit}`). Output fields are mapped flexibly (title/name, price/priceValue, url/link,
+thumbnail/image, …). Stores without an actor stay as deep-links. Served by
+`GET /api/bestsellers/items?store_name=amazon&category=Mobiles`.
 
 ## Daily price & availability tracking
 
